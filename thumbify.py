@@ -199,6 +199,7 @@ if __name__ == '__main__':
     print ("Creating thumbnails of %s files in %s into %s\n\trecursive: %d, prefix: %s, suffix: %s, size: %d"
            % (options.filter, options.directory, options.output_directory, options.recursive, options.prefix, options.suffix, options.size))   
 
+    #find the files to process
     files = []
     if options.recursive:
         for root, dirs, files in os.walk(options.directory):
@@ -209,6 +210,7 @@ if __name__ == '__main__':
         for file in glob.glob1(options.directory, options.filter):
             files.append(os.path.join(options.directory, file))
 
+    #process each file we found
     num = 0
     for file in files:
         num += 1
