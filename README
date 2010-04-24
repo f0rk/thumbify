@@ -1,0 +1,20 @@
+thumbify.py: simple thumbnailing + face detection
+
+thumbify.py crops and scales images square so that they
+may be used as thumbnails. It will attempt to recognize
+if the image(s) contain any faces, and attempt to avoid
+cropping them. It will then try to identify and remove
+the least interesting parts of the image first.
+
+deface.py identifies suspected faces in an image and
+prints out their bounding box.
+
+OpenCV with the development headers is requied. You
+may need edit the path to the Haar classifier cascade
+file in deface.py if you get an error message complaining
+"terminate called after throwing an instance of 'int'".
+
+Enjoy!
+
+Ryan P. Kelly
+
