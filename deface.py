@@ -1,45 +1,61 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
-import sys, os
-from opencv.cv import *
-from opencv.highgui import *
- 
-def detect_faces(image):
+"""deface: face detection for images.
+
+deface can be used as a library, or as a command line program.
+To run from the command line, call deface.py with --help to see
+what options you have available.
+
+"""
+
+import os
+import sys
+import argparse
+
+import cv2
+
+
+def detect_faces(img):
     """Converts an image to grayscale and returns the locations of any
     (suspected) faces found.
+
+    :param img: A cv image object.
+
     """
-    grayscale = cvCreateImage(cvSize(image.width, image.height), 8, 1)
-    cvCvtColor(image, grayscale, CV_BGR2GRAY)
- 
-    storage = cvCreateMemStorage(0)
-    cvClearMemStorage(storage)
-    cvEqualizeHist(grayscale, grayscale)
-    cascade = cvLoadHaarClassifierCascade(
-        '/usr/share/opencv/haarcascades/haarcascade_frontalface_default.xml',
-        cvSize(1,1))
-    faces = cvHaarDetectObjects(grayscale, cascade, storage, 1.2, 2,
-                             CV_HAAR_DO_CANNY_PRUNING, cvSize(50,50))
-    return faces
+
+    grayscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    cascade = cv2.CascadeClassifier("/usr/share/opencv/haarcascades/haarcascade_frontalface_default.xml")
+
+    flags = cv2.CASCADE_DO_CANNY_PRUNING | cv2.CASCADE_SCALE_IMAGE
+    faces = cascade.detectMultiScale(grayscale, scaleFactor=1.2, minNeighbors=2,
+                                     flags=flags, minSize=(50, 50))
+
+    return [(x1, y1, x2, y2) for x1, y1, x2, y2 in faces]
+
 
 def detect_faces_file(file):
     """Given the location of an image file, it converts it to grayscale
     and returns the location of any (suspected) faces.
+
+    :param file: The path to the image.
+
     """
-    return detect_faces(cvLoadImage(file))
+
+    return detect_faces(cv2.imread(file))
+
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        print "usage: %s FILE\n" % (sys.argv[0])
-        print "error: too few arguments"
-        sys.exit(-1)
-    if len(sys.argv) > 2:
-        print "usage: %s FILE\n" % (sys.argv[0])
-        print "error: too many arguments"
-        sys.exit(-1)
-    
-    faces = detect_faces_file(sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file", help="file to detect faces in")
+    parser.add_argument("--draw", action="store_true",
+                        help="draw rectangles on the image of the face locations")
+    args = parser.parse_args()
+
+    faces = detect_faces_file(args.file)
     if faces:
-        for f in faces:
-            print("%d,%d %d,%d" % (f.x, f.y, f.x + f.width, f.y + f.height))
+        for x1, y1, x2, y2 in faces:
+            print("{},{} {},{}".format(x1, y1, x2, y2))
     else:
-        print "no faces detected"
+        print("no faces detected")
+

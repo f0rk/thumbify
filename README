@@ -9,12 +9,9 @@ the least interesting parts of the image first.
 deface.py identifies suspected faces in an image and
 prints out their bounding box.
 
-OpenCV with the development headers is requied. You
-may need edit the path to the Haar classifier cascade
-file in deface.py if you get an error message complaining
-"terminate called after throwing an instance of 'int'".
+To install dependencies on Ubuntu:
 
-Enjoy!
+apt-get install python-opencv python-numpy libopencv-dev python-pyexiv2
 
 Ryan P. Kelly
 
