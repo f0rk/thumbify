@@ -9,12 +9,12 @@ what options you have available.
 """
 
 import os
-import sys
 import glob
 import math
 import fnmatch
 import tempfile
 import argparse
+import subprocess
 
 import Image
 import pyexiv2
@@ -99,20 +99,19 @@ def entropy_crop(img):
     return img
 
 
-def face_crop(img):
-    """If the image is not square, square it off. determine
-    which pieces to cut off based on any faces, if present.
+def scale_to_size(img, scale_size):
+    """Given an image and a scale size, return the new width and height of
+    the image, scaled such that the maximum dimension is the given size.
 
     :param img: The Image instance.
+    :param scale_size: The maximum dimension.
 
     """
 
     x, y = img.size
     w, h = img.size
 
-    # face detection works better on small images
     factor = 1
-    scale_size = 800
     if x > scale_size and y > scale_size:
         if x > y:
             factor = x / float(scale_size)
@@ -126,6 +125,22 @@ def face_crop(img):
         w = int(w)
         h = int(h)
 
+    return w, h, factor
+
+
+def face_crop(img):
+    """If the image is not square, square it off. determine
+    which pieces to cut off based on any faces, if present.
+
+    :param img: The Image instance.
+
+    """
+
+    x, y = img.size
+
+    # face detection works better on small images
+    w, h, factor = scale_to_size(img, 600)
+
     rimg = img.copy()
     if factor != 1:
         # scaling
@@ -133,7 +148,8 @@ def face_crop(img):
 
     # opencv doesn't use PIL, so we'll need a tempfile for it to operate on
     with tempfile.NamedTemporaryFile(suffix=".jpg") as tf:
-        rimg.save(tf.name, format="JPEG")
+        rimg.format = "jpeg"
+        rimg.save(tf.name)
 
         faces = deface.detect_faces_file(tf.name)
 
@@ -142,18 +158,18 @@ def face_crop(img):
         nfaces = 0
         if faces:
             nfaces = len(faces) # hacks
-
         if nfaces > 0 and nfaces < 5:
             # center crop box on faces rect
-            for x1, y1, x2, y2 in faces:
-                if x1 < ulx:
-                    ulx = x1
-                if y1 < uly:
-                    uly = y1
-                if x2 > lrx:
-                    lrx = x2
-                if y2 > lry:
-                    lry = y2
+            for x, y, w, h in faces:
+
+                if x < ulx:
+                    ulx = x
+                if y < uly:
+                    uly = y
+                if x + w > lrx:
+                    lrx = x + w
+                if y + h > lry:
+                    lry = y + h
 
             # translate back to full size image
             ulx = ulx * factor
@@ -169,13 +185,13 @@ def face_crop(img):
             wd, ht = img.size
             ulx_crop, uly_crop, lrx_crop, lry_crop = 0, 0, wd, ht
             if wd > ht:
-                ulx_crop = min(wd - ht, cx - ht / 2)
+                ulx_crop = max(min(wd - ht, cx - ht / 2), 0)
                 uly_crop = 0
                 lrx_crop = ulx_crop + ht
                 lry_crop = ht
             else:
                 ulx_crop = 0
-                uly_crop = min(ht - wd, cy - wd / 2)
+                uly_crop = max(min(ht - wd, cy - wd / 2), 0)
                 lrx_crop = wd
                 lry_crop = uly_crop + wd
 
@@ -184,6 +200,43 @@ def face_crop(img):
                              int(lry_crop)))
         else:
             return None
+
+
+def reorient_image(img, file):
+    """Rotate the given image to the correct orientation using the exif
+    information. This method returns a copy of the image.
+
+    :param img: The Image instance.
+    :param file: The path of the original image, needed to obtain the
+        extension/metadata.
+
+    """
+
+    _, ext = os.path.splitext(file)
+
+    orig_meta = pyexiv2.ImageMetadata(file)
+    orig_meta.read()
+
+    with tempfile.NamedTemporaryFile(suffix=ext) as tfp:
+        img.save(tfp.name)
+
+        new_meta = pyexiv2.ImageMetadata(tfp.name)
+        new_meta.read()
+
+        orig_meta.copy(new_meta)
+        new_meta.write()
+
+        args = [
+            "mogrify",
+            "-auto-orient",
+            tfp.name,
+        ]
+        process = subprocess.Popen(args, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
+        process.communicate()
+
+        return Image.open(tfp.name)
+
 
 if __name__ == "__main__":
 
@@ -213,33 +266,32 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # print what we're about to do...
-    print ("Creating thumbnail(s) of {} file(s) in '{}' into '{}'\n\t"
-           "recursive: {}, prefix: '{}', suffix: '{}', size: {}"
-           .format(args.filter, args.source, args.destination,
-                   args.recursive, args.prefix, args.suffix, args.size))
+    print("Creating thumbnail(s) of {} file(s) in '{}' into '{}'\n\t"
+          "recursive: {}, prefix: '{}', suffix: '{}', size: {}"
+          .format(args.filter, args.source, args.destination,
+                  args.recursive, args.prefix, args.suffix, args.size))
 
     # find the files to process
     if os.path.isfile(args.source):
-        files = [args.source]
+        selected = [args.source]
     else:
-        files = []
+        selected = []
         if args.recursive:
             for root, dirs, files in os.walk(args.source):
                 for name in files:
                     if fnmatch.fnmatch(name, args.filter):
-                        files.append(os.path.join(root, name));
+                        selected.append(os.path.join(root, name));
         else:
             for file in glob.glob1(args.source, args.filter):
-                files.append(os.path.join(args.source, file))
+                selected.append(os.path.join(args.source, file))
 
     # process each file we found
     num = 0
-    for file in files:
+    for file in selected:
         num += 1
-        img = Image.open(file).convert("RGB")
-        old_exif = pyexiv2.ImageMetadata(file)
-        old_exif.read()
 
+        img = Image.open(file)
+        img = reorient_image(img, file)
         img = square_image(img)
         img.thumbnail((args.size, args.size), Image.ANTIALIAS)
 
@@ -261,10 +313,4 @@ if __name__ == "__main__":
 
         print("creating {}: {}".format(num, thumbnail))
         img.save(thumbnail)
-
-        new_exif = pyexiv2.ImageMetadata(thumbnail)
-        new_exif.read()
-
-        old_exif.copy(new_exif)
-        new_exif.write()
 
