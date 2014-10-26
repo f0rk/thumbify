@@ -9,9 +9,14 @@ the least interesting parts of the image first.
 deface.py identifies suspected faces in an image and
 prints out their bounding box.
 
+gallerize.py creates a stand-alone html gallery from a
+directory of images.
+
 To install dependencies on Ubuntu:
 
-apt-get install python-opencv python-numpy libopencv-dev python-pyexiv2
+apt-get install python-opencv python-numpy libopencv-dev imagemagick python-pyexiv2
 
-Ryan P. Kelly
+gallerize.py also requires mako:
+
+apt-get install python-mako
 
