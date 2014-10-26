@@ -28,10 +28,10 @@ def detect_faces(img):
     cascade = cv2.CascadeClassifier("/usr/share/opencv/haarcascades/haarcascade_frontalface_default.xml")
 
     flags = cv2.CASCADE_DO_CANNY_PRUNING | cv2.CASCADE_SCALE_IMAGE
-    faces = cascade.detectMultiScale(grayscale, scaleFactor=1.2, minNeighbors=2,
+    faces = cascade.detectMultiScale(grayscale, scaleFactor=1.1, minNeighbors=2,
                                      flags=flags, minSize=(50, 50))
 
-    return [(x1, y1, x2, y2) for x1, y1, x2, y2 in faces]
+    return [(x, y, w, h) for x, y, w, h in faces]
 
 
 def detect_faces_file(file):
@@ -54,8 +54,8 @@ if __name__ == "__main__":
 
     faces = detect_faces_file(args.file)
     if faces:
-        for x1, y1, x2, y2 in faces:
-            print("{},{} {},{}".format(x1, y1, x2, y2))
+        for x, y, w, h in faces:
+            print("{},{} {},{}".format(x, y, x + w, y + h))
     else:
         print("no faces detected")
 
