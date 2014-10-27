@@ -57,7 +57,11 @@ TEMPLATE = """
 
             .img {
                 display: inline;
-                margin: 10px;
+            }
+
+            img {
+                margin-right: 10px;
+                margin-bottom: 10px;
             }
         </style>
 
