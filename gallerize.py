@@ -65,11 +65,11 @@ TEMPLATE = """
             }
         </style>
 
-        <title>photostream</title>
+        <title>${title}</title>
     </head>
     <body>
 
-        <h1>photostream</h1>
+        <h1>${title}</h1>
 
         % for image in images:
             <div class="img">
@@ -106,6 +106,9 @@ if __name__ == "__main__":
     parser.add_argument("--destination", dest="destination", required=True,
                         help="The output directory where you want the gallery.")
 
+    parser.add_argument("--title", dest="title", default="photostream",
+                        help="The title you would like to apply to the gallery.")
+
     args = parser.parse_args()
 
     # source and destination cannot match
@@ -118,6 +121,9 @@ if __name__ == "__main__":
         for name in files:
             if fnmatch.fnmatch(name, args.filter):
                 selected.append(os.path.join(root, name));
+
+    # sort the found files
+    selected.sort()
 
     # keep track of all the image names to template in
     image_names = []
@@ -182,5 +188,5 @@ if __name__ == "__main__":
     # format and write out the template
     with open(os.path.join(args.destination, "index.html"), "w") as fp:
         template = Template(TEMPLATE)
-        fp.write(template.render(images=image_names))
+        fp.write(template.render(images=image_names, title=args.title))
 
